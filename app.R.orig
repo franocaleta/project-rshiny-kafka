@@ -32,8 +32,14 @@ user_base<- data.frame(dbFetch(res))
 print(user_base)
 dbClearResult(res)
 
+<<<<<<< HEAD
 temp <- read.csv(file="dataset.csv", header=TRUE, sep=",")
 temp1 <- subset(temp, select = -X)
+=======
+temp <- '{"ID": 1, "CALLER": 0.0, "CALLEE": 38512773097.0, "CALL_DATE": "2017-01-03",
+  "AVG_CALL_DURATION_LAST_1D": 46.0, "TOTAL_CALL_DURATION_LAST_1D": 146.0, "MAX_CALL_DURATION_LAST_1D": 196.0, "MIN_CALL_DURATION_LAST_1D": 16.0}'
+temp <- fromJSON(temp)
+>>>>>>> master
 
 ui <- fluidPage(
   shinyjs::useShinyjs(),
