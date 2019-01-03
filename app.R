@@ -7,6 +7,13 @@ library(ggplot2)
 library(shinyauthr)
 library(shinyjs)
 
+library(lubridate)
+
+library(RSQLite)
+library(DBI)
+library(shinyalert)
+
+mydb <- dbConnect(RSQLite::SQLite(), "users.sqlite")
 user_base <- data.frame(
   user = c("user", "admin"),
   password = c("user", "admin"), 
@@ -15,17 +22,31 @@ user_base <- data.frame(
   stringsAsFactors = FALSE
 )
 
+#DBI::dbRemoveTable(mydb,"users")
+if(!DBI::dbExistsTable(mydb, "users")) {
+  DBI::dbWriteTable(mydb, "users", user_base)
+}
+
+res <- dbSendQuery(mydb, "SELECT * FROM users")
+user_base<- data.frame(dbFetch(res))
+print(user_base)
+dbClearResult(res)
 
 temp <- '{"ID": 1, "CALLER": 0.0, "CALLEE": 38512773097.0, "CALL_DATE": "2017-01-03",
   "AVG_CALL_DURATION_LAST_1D": 46.0, "TOTAL_CALL_DURATION_LAST_1D": 146.0, "MAX_CALL_DURATION_LAST_1D": 196.0, "MIN_CALL_DURATION_LAST_1D": 16.0}'
 temp <- fromJSON(temp)
-print(temp)
 
 ui <- fluidPage(
   shinyjs::useShinyjs(),
+  useShinyalert(),
   div(class = "pull-right", shinyauthr::logoutUI(id = "logout")),
+  div(class = "pull-right", id="add-user",
+      textInput("name", "Name", ""),
+      textInput("pw", "Password",""),
+      actionButton("addUser", "Add User", class="button-primary")),
+  
   shinyauthr::loginUI(id = "login"),
-#  titlePanel("Calls"),
+ # titlePanel("Calls"),
   sidebarLayout(
     div(id="Sidebar", sidebarPanel(
       selectInput("var", 
@@ -44,8 +65,10 @@ ui <- fluidPage(
   )
 )
 server <- function(input, output, session) {
-  
+  shinyjs::hide(id = "add-user")
+  shinyjs::hide(id = "Sidebar")
   index<-0
+  
   output$selected_var <- renderText({ 
     paste("You have selected", input$var)
   })
@@ -68,8 +91,24 @@ server <- function(input, output, session) {
   observe({
     if(credentials()$user_auth && credentials()$info$permissions == "admin") {
       shinyjs::show(id = "Sidebar")
+      shinyjs::show(id = "add-user")
     } else {
       shinyjs::hide(id = "Sidebar")
+      shinyjs::hide(id = "add-user")
+    }
+  })
+  
+  observeEvent(input$addUser, {
+    if(input$name != '' && input$pw != '') {
+      new_user <- data.frame(
+        user = input$name,
+        password = input$pw, 
+        permissions = "user",
+        name = input$name,
+        stringsAsFactors = FALSE
+      )
+      DBI::dbWriteTable(mydb, "users", new_user, append = TRUE)
+      shinyalert("Success", "New User Added", type = "success")
     }
   })
   
