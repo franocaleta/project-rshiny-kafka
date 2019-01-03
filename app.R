@@ -7,6 +7,17 @@ library(ggplot2)
 library(shinyauthr)
 library(shinyjs)
 
+library(lubridate)
+
+# Load libraries and functions needed to create SQLite databases.
+#dplyr::db
+library(RSQLite)
+library(DBI)
+#library(RSQLite.extfuns)
+
+
+mydb <- dbConnect(RSQLite::SQLite(), "users.sqlite")
+
 user_base <- data.frame(
   user = c("user", "admin"),
   password = c("user", "admin"), 
@@ -14,7 +25,18 @@ user_base <- data.frame(
   name = c("User", "Admin"),
   stringsAsFactors = FALSE
 )
+if(!DBI::dbExistsTable(mydb, "users")) {
+  DBI::dbWriteTable(mydb, "users", user_base)
+}
+dbListTables(mydb)
+#user_base_db <- saveSQLite(user_base, "user_base")
 
+
+res <- dbSendQuery(mydb, "SELECT * FROM users")
+#print(res)
+#print(dbFetch(res))
+user_base<- data.frame(dbFetch(res))
+#print(dbExistsTable(mydb, "users"))
 
 temp <- '{"ID": 1, "CALLER": 0.0, "CALLEE": 38512773097.0, "CALL_DATE": "2017-01-03",
   "AVG_CALL_DURATION_LAST_1D": 46.0, "TOTAL_CALL_DURATION_LAST_1D": 146.0, "MAX_CALL_DURATION_LAST_1D": 196.0, "MIN_CALL_DURATION_LAST_1D": 16.0}'
