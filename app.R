@@ -16,10 +16,8 @@ user_base <- data.frame(
 )
 
 
-temp <- '{"ID": 1, "CALLER": 0.0, "CALLEE": 38512773097.0, "CALL_DATE": "2017-01-03",
-  "AVG_CALL_DURATION_LAST_1D": 46.0, "TOTAL_CALL_DURATION_LAST_1D": 146.0, "MAX_CALL_DURATION_LAST_1D": 196.0, "MIN_CALL_DURATION_LAST_1D": 16.0}'
-temp <- fromJSON(temp)
-print(temp)
+temp <- read.csv(file="dataset.csv", header=TRUE, sep=",")
+temp1 <- subset(temp, select = -X)
 
 ui <- fluidPage(
   shinyjs::useShinyjs(),
@@ -74,8 +72,7 @@ server <- function(input, output, session) {
   })
   
   get_new_data <- function(){
-     data <- temp %>% data.frame
-     data$CALLER <- index +1
+     data <- temp1[index, ]
      index <<- index +1
      return(data)
   }
@@ -96,7 +93,7 @@ server <- function(input, output, session) {
     invalidateLater(1000, session)
     update_data()
     gg <-
-      ggplot(values[1:6,], aes_string(x = x_axis, y =y_axis))
+      ggplot(values, aes_string(x = x_axis, y =y_axis))
     gg <- gg + geom_point()  + geom_text(aes(label=CALLEE), hjust=0, vjust=0)
    
     gg
