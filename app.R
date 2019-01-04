@@ -12,6 +12,10 @@ library(lubridate)
 library(RSQLite)
 library(DBI)
 library(shinyalert)
+library(reticulate)
+source_python("create_df.py")
+num <- fun()
+print(num)
 
 mydb <- dbConnect(RSQLite::SQLite(), "users.sqlite")
 user_base <- data.frame(
@@ -112,8 +116,9 @@ server <- function(input, output, session) {
   })
   
   get_new_data <- function(){
-     data <- temp1[index, ]
-     index <<- index +1
+     data <- fun2()
+     print(data)
+     print('---------------------------------------')
      return(data)
   }
   
@@ -132,6 +137,8 @@ server <- function(input, output, session) {
     x_axis <- 'CALLER'
     invalidateLater(1000, session)
     update_data()
+   # aa <- fun2()
+   # print(aa)
     gg <-
       ggplot(values, aes_string(x = x_axis, y =y_axis))
     gg <- gg + geom_point()  + geom_text(aes(label=CALLEE), hjust=0, vjust=0)
