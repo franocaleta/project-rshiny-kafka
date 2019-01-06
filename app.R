@@ -166,8 +166,6 @@ server <- function(input, output, session) {
   }
   
   values <<- get_new_data()
-  invalidateLater(1000, session)
-  update_data()
   
   
   update_data <- function(){
@@ -180,7 +178,9 @@ server <- function(input, output, session) {
     req(credentials()$user_auth)
     y_axis <- input$var
     x_axis <- 'CALLER'
-  # aa <- fun2()
+    invalidateLater(1000, session)
+    update_data()
+   # aa <- fun2()
    # print(aa)
    # geom_point(aes(x = varL,y = fit, shape = varP))
     gg <-
