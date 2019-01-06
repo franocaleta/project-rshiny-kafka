@@ -21,7 +21,8 @@ def fun2():
             caller_country = pycountry.countries.get(alpha_2=region_code_for_number(phonenumbers.parse('+' + str(int(mapa['CALLER'])))))
             mapa['CALLER_COUNTRY']  = caller_country.name
 
-
+            if float(mapa['AVG_CALL_DURATION_LAST_1D']) > float(mapa['TOTAL_CALL_DURATION_LAST_1D']):
+                continue
             values = [list(mapa.values())] #spremamo vrijednosti prve poruke
             columns = list(mapa.keys()) #spremamo atribute prve poruke
             df = pd.DataFrame(values,columns=columns)

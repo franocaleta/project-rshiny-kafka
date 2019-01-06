@@ -1,11 +1,12 @@
 #install.packages("shinyjs")
-
+#install.packages("shinydashboard")
 library(shiny)
 library(magrittr)
 library(jsonlite)
 library(ggplot2)
 library(shinyauthr)
 library(shinyjs)
+library(shinydashboard)
 
 library(lubridate)
 
@@ -16,7 +17,6 @@ library(reticulate)
 source_python("create_df.py")
 num <- fun()
 print(num)
-
 mydb <- dbConnect(RSQLite::SQLite(), "users.sqlite")
 user_base <- data.frame(
   user = c("user", "admin"),
@@ -67,15 +67,60 @@ ui <- fluidPage(
     )
   )
 )
+ui2 <-dashboardPage(
+  dashboardHeader(title ="title"),
+  dashboardSidebar(
+    sidebarMenu(
+      menuItem("Dashboard", tabName = "dashboard", icon = icon("dashboard")),
+      menuItem("Widgets", tabName = "widgets", icon = icon("th"))
+    )
+  ),
+  dashboardBody(
+    
+    shinyjs::useShinyjs(),
+    
+    useShinyalert(),
+    
+    div(class = "pull-right", shinyauthr::logoutUI(id = "logout")),
+    shinyauthr::loginUI(id = "login"),
+    
+    tabItems(
+      # First tab content
+      tabItem(tabName = "dashboard",
+              fluidRow(
+                plotOutput("grid"),
+                
+                box(
+                  title = "Controls",
+                  sliderInput("slider", "Number of data frames displayed:", 10, 20, 15)
+                ),
+                box(selectInput("var", 
+                                label = "Choose a variable to display",
+                                choices = c("AVG_CALL_DURATION_LAST_1D", 
+                                            "TOTAL_CALL_DURATION_LAST_1D",
+                                            "MAX_CALL_DURATION_LAST_1D", 
+                                            "MIN_CALL_DURATION_LAST_1D"),
+                                selected = "AVG_CALL_DURATION_LAST_1D")
+                    
+                )
+              )
+      ),
+      
+      # Second tab content
+      tabItem(tabName = "widgets",
+              h2("Widgets tab content")
+      )
+    )
+  )
+)
 server <- function(input, output, session) {
   shinyjs::hide(id = "add-user")
   shinyjs::hide(id = "Sidebar")
   index<-0
-  
+ 
   output$selected_var <- renderText({ 
     paste("You have selected", input$var)
   })
-  #shinyjs::hide(id = "Sidebar")
   logout_init <- callModule(shinyauthr::logout, 
                             id = "logout", 
                             active = reactive(credentials()$user_auth))
@@ -87,16 +132,14 @@ server <- function(input, output, session) {
                             pwd_col = password,
                             log_out = reactive(logout_init()))
   
-  # pulls out the user information returned from login module
   user_data <- reactive({credentials()$info})
- # print(user_data)
-  
+
   observe({
     if(credentials()$user_auth && credentials()$info$permissions == "admin") {
       shinyjs::show(id = "Sidebar")
       shinyjs::show(id = "add-user")
     } else {
-      shinyjs::hide(id = "Sidebar")
+     shinyjs::hide(id = "Sidebar")
       shinyjs::hide(id = "add-user")
     }
   })
@@ -123,6 +166,8 @@ server <- function(input, output, session) {
   }
   
   values <<- get_new_data()
+  invalidateLater(1000, session)
+  update_data()
   
   
   update_data <- function(){
@@ -135,18 +180,23 @@ server <- function(input, output, session) {
     req(credentials()$user_auth)
     y_axis <- input$var
     x_axis <- 'CALLER'
-    invalidateLater(1000, session)
-    update_data()
-   # aa <- fun2()
+  # aa <- fun2()
    # print(aa)
+   # geom_point(aes(x = varL,y = fit, shape = varP))
     gg <-
-      ggplot(values, aes_string(x = x_axis, y =y_axis))
-    gg <- gg + geom_point()  + geom_text(aes(label=CALLEE), hjust=0, vjust=0)
+      ggplot(values[1:input$slider,], aes_string(x = "ID", y =input$var))
+    gg <- gg + geom_point(col = "brown") + geom_line(col = "brown") + theme_bw() + labs(x="Time")
    
     gg
+  })
+  
+  
+  session$onSessionEnded(function() {
+ #   DBI::dbDisconnect(mydb)
+  #  print("disconnected")
   })
  
   
 }
 
-shinyApp(ui=ui,server=server)
+shinyApp(ui=ui2,server=server)
