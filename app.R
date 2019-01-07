@@ -72,7 +72,8 @@ ui2 <-dashboardPage(
   dashboardSidebar(
     sidebarMenu(
       menuItem("Dashboard", tabName = "dashboard", icon = icon("dashboard")),
-      menuItem("Widgets", tabName = "widgets", icon = icon("th"))
+      menuItem("Widgets", tabName = "widgets", icon = icon("th")),
+      menuItem("Create User", tabName = "createUser", icon = icon("th"))
     )
   ),
   dashboardBody(
@@ -109,7 +110,13 @@ ui2 <-dashboardPage(
       # Second tab content
       tabItem(tabName = "widgets",
               h2("Widgets tab content")
-      )
+      ),
+      tabItem(tabName ="createUser",
+          box(
+            textInput("name", "Name", ""),
+            textInput("pw", "Password",""),
+            actionButton("addUser", "Add User", class="button-primary")
+           ))
     )
   )
 )
@@ -180,9 +187,6 @@ server <- function(input, output, session) {
     x_axis <- 'CALLER'
     invalidateLater(1000, session)
     update_data()
-   # aa <- fun2()
-   # print(aa)
-   # geom_point(aes(x = varL,y = fit, shape = varP))
     gg <-
       ggplot(values[1:input$slider,], aes_string(x = "ID", y =input$var))
     gg <- gg + geom_point(col = "brown") + geom_line(col = "brown") + theme_bw() + labs(x="Time")
