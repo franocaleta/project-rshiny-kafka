@@ -37,7 +37,8 @@ print(user_base)
 dbClearResult(res)
 
 temp <- read.csv(file="dataset.csv", header=TRUE, sep=",")
-temp1 <- subset(temp, select = -X)
+temp <- subset(temp, select = -X)
+temp <- temp[temp$AVG_CALL_DURATION_LAST_1D<=temp$TOTAL_CALL_DURATION_LAST_1D, ]
 
 ui <- fluidPage(
   shinyjs::useShinyjs(),
@@ -58,7 +59,7 @@ ui <- fluidPage(
                               "TOTAL_CALL_DURATION_LAST_1D",
                               "MAX_CALL_DURATION_LAST_1D", 
                               "MIN_CALL_DURATION_LAST_1D"),
-                  selected = "AVG_CALL_DURATION_LAST_1D")
+                  selected = "TOTAL_CALL_DURATION_LAST_1D")
       
     )),
     
@@ -183,15 +184,16 @@ server <- function(input, output, session) {
   #output$var<- var
   output$grid <- renderPlot({
     req(credentials()$user_auth)
-    y_axis <- input$var
-    x_axis <- 'CALLER'
     invalidateLater(1000, session)
     update_data()
     gg <-
       ggplot(values[1:input$slider,], aes_string(x = "ID", y =input$var))
+
     gg <- gg + geom_point(col = "brown") + geom_line(col = "brown") + theme_bw() + labs(x="Time")
    
     gg
+    #print(qplot(ID, TOTAL_CALL_DURATION_LAST_1D, data=values[1:15,]) + ylim(-2, 86400))
+   
   })
   
   
