@@ -14,6 +14,8 @@ library(RSQLite)
 library(DBI)
 library(shinyalert)
 library(reticulate)
+#use_python("/usr/local/opt/python/bin/python3.6",required = TRUE)
+#py_config()
 source_python("create_df.py")
 num <- fun()
 print(num)
@@ -37,43 +39,15 @@ print(user_base)
 dbClearResult(res)
 
 temp <- read.csv(file="dataset.csv", header=TRUE, sep=",")
-temp <- subset(temp, select = -X)
-temp <- temp[temp$AVG_CALL_DURATION_LAST_1D<=temp$TOTAL_CALL_DURATION_LAST_1D, ]
+temp1 <- subset(temp, select = -X)
 
-ui <- fluidPage(
-  shinyjs::useShinyjs(),
-  useShinyalert(),
-  div(class = "pull-right", shinyauthr::logoutUI(id = "logout")),
-  div(class = "pull-right", id="add-user",
-      textInput("name", "Name", ""),
-      textInput("pw", "Password",""),
-      actionButton("addUser", "Add User", class="button-primary")),
-  
-  shinyauthr::loginUI(id = "login"),
- # titlePanel("Calls"),
-  sidebarLayout(
-    div(id="Sidebar", sidebarPanel(
-      selectInput("var", 
-                  label = "Choose a variable to display",
-                  choices = c("AVG_CALL_DURATION_LAST_1D", 
-                              "TOTAL_CALL_DURATION_LAST_1D",
-                              "MAX_CALL_DURATION_LAST_1D", 
-                              "MIN_CALL_DURATION_LAST_1D"),
-                  selected = "TOTAL_CALL_DURATION_LAST_1D")
-      
-    )),
-    
-    mainPanel(
-      plotOutput("grid")
-    )
-  )
-)
+
 ui2 <-dashboardPage(
   dashboardHeader(title ="title"),
   dashboardSidebar(
     sidebarMenu(
       menuItem("Dashboard", tabName = "dashboard", icon = icon("dashboard")),
-      menuItem("Widgets", tabName = "widgets", icon = icon("th")),
+      menuItem("Dashboard 2", tabName = "dashboard2", icon = icon("dashboard")),
       menuItem("Create User", tabName = "createUser", icon = icon("th"))
     )
   ),
@@ -89,28 +63,59 @@ ui2 <-dashboardPage(
     tabItems(
       # First tab content
       tabItem(tabName = "dashboard",
+    
               fluidRow(
-                plotOutput("grid"),
+                column(width = 5,
+                       valueBoxOutput("value1",width = NULL),
+                       box(
+                         width = NULL
+                         ,status = "primary"
+                         ,solidHeader = FALSE 
+                         ,collapsible = TRUE 
+                         ,plotOutput("grid",height = 320)
+                       ) ,
+                       box(width = NULL,height = 80,selectInput("var", 
+                                                                label = "Choose a variable to display",
+                                                                choices = c("AVG_CALL_DURATION_LAST_1D", 
+                                                                            "TOTAL_CALL_DURATION_LAST_1D",
+                                                                            "MAX_CALL_DURATION_LAST_1D", 
+                                                                            "MIN_CALL_DURATION_LAST_1D"),
+                                                                selected = "AVG_CALL_DURATION_LAST_1D")
                 
-                box(
-                  title = "Controls",
-                  sliderInput("slider", "Number of data frames displayed:", 10, 20, 15)
-                ),
-                box(selectInput("var", 
-                                label = "Choose a variable to display",
-                                choices = c("AVG_CALL_DURATION_LAST_1D", 
-                                            "TOTAL_CALL_DURATION_LAST_1D",
-                                            "MAX_CALL_DURATION_LAST_1D", 
-                                            "MIN_CALL_DURATION_LAST_1D"),
-                                selected = "AVG_CALL_DURATION_LAST_1D")
+               
                     
+                ) ),column(width = 5, 
+                           valueBoxOutput("value2",width = NULL),
+                           box(
+                  width = NULL
+                  ,status = "primary"
+                  ,solidHeader = FALSE 
+                  ,collapsible = TRUE 
+                  ,plotOutput("grid2",height = 320)
+                ),box(width = NULL,height = 80,selectInput("var2", 
+                                                           label = "Choose a variable to display",
+                                                           choices = c("AVG_CALL_DURATION_LAST_1D", 
+                                                                       "TOTAL_CALL_DURATION_LAST_1D",
+                                                                       "MAX_CALL_DURATION_LAST_1D", 
+                                                                       "MIN_CALL_DURATION_LAST_1D"),
+                                                           selected = "AVG_CALL_DURATION_LAST_1D")
+                      
                 )
+      
+                           
+                           
               )
-      ),
+      )),
       
       # Second tab content
-      tabItem(tabName = "widgets",
-              h2("Widgets tab content")
+      tabItem(tabName = "dashboard2",
+              fluidRow( box(
+                status = "primary"
+                ,solidHeader = FALSE 
+                ,collapsible = TRUE 
+                ,plotOutput("grid3",height = 320)
+              ))
+              
       ),
       tabItem(tabName ="createUser",
           box(
@@ -121,7 +126,26 @@ ui2 <-dashboardPage(
     )
   )
 )
+
+get_new_data <- function(){
+  data <- fun2()
+  print(data)
+  print('---------------------------------------')
+  return(data)
+}
+values <<-NULL
+values <<- get_new_data()
+update_data <- function(){
+  values <<- rbind(get_new_data(), values)
+  values
+}
+
 server <- function(input, output, session) {
+  valueBoxReacts <- reactiveValues()
+  new_values <- reactive({data <- get_new_data()
+                            data})
+ 
+  
   shinyjs::hide(id = "add-user")
   shinyjs::hide(id = "Sidebar")
   index<-0
@@ -150,6 +174,8 @@ server <- function(input, output, session) {
      shinyjs::hide(id = "Sidebar")
       shinyjs::hide(id = "add-user")
     }
+   
+    
   })
   
   observeEvent(input$addUser, {
@@ -166,34 +192,81 @@ server <- function(input, output, session) {
     }
   })
   
-  get_new_data <- function(){
-     data <- fun2()
-     print(data)
-     print('---------------------------------------')
-     return(data)
-  }
-  
-  values <<- get_new_data()
   
   
-  update_data <- function(){
-    values <<- rbind(get_new_data(), values)
-  }
+  
+  
+  
+  
   
 
   #output$var<- var
+
+  output$value1 <- renderValueBox({
+    valueBox(
+      formatC(paste(valueBoxReacts$max_call,"s"), format="d", big.mark=',')
+      ,"Longest call in seconds"
+      ,icon = icon("stats",lib='glyphicon')
+      ,color = "purple")
+    
+    
+  })
+  
+  output$value2 <- renderValueBox({
+    valueBox(
+      formatC(valueBoxReacts$num_call, format="d", big.mark=',')
+      ,"Total number of calls"
+      ,icon = icon("stats",lib='glyphicon')
+      ,color = "green")
+    
+    
+  })
+  
+  #output$var<- var
+  
+  
+  
   output$grid <- renderPlot({
     req(credentials()$user_auth)
+    nvalues <- update_data()
+    valueBoxReacts$max_call <- max(nvalues$MAX_CALL_DURATION_LAST_7D)
+    valueBoxReacts$num_call <- nrow(nvalues)
     invalidateLater(1000, session)
-    update_data()
     gg <-
-      ggplot(values[1:input$slider,], aes_string(x = "ID", y =input$var))
-
+      ggplot(nvalues, aes_string(x = "ID", y =input$var))
     gg <- gg + geom_point(col = "brown") + geom_line(col = "brown") + theme_bw() + labs(x="Time")
    
     gg
-    #print(qplot(ID, TOTAL_CALL_DURATION_LAST_1D, data=values[1:15,]) + ylim(-2, 86400))
-   
+  })
+  
+  output$grid2 <- renderPlot({
+    nvalues <- update_data()
+    valueBoxReacts$max_call <- max(nvalues$MAX_CALL_DURATION_LAST_7D)
+    valueBoxReacts$num_call <- nrow(nvalues)
+    req(credentials()$user_auth)
+    update_data()
+    invalidateLater(1000, session)
+    
+      gg <- ggplot(data=nvalues, aes_string(x = input$var2,fill = "CALLER_COUNTRY")) + 
+        geom_histogram(bins = 10) + xlab(label = input$var2 )
+      
+      gg
+          
+  
+  })
+  
+  
+  output$grid3 <- renderPlot({
+    req(credentials()$user_auth)
+    nvalues <- update_data()
+    invalidateLater(1000, session)
+    
+    gg <- ggplot(data=nvalues, aes_string(x = input$var2,fill = "CALLER_COUNTRY")) + 
+      geom_histogram(bins = 10) + xlab(label = input$var2 )
+    
+    gg
+    
+    
   })
   
   
