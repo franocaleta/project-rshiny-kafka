@@ -39,7 +39,10 @@ print(user_base)
 dbClearResult(res)
 
 temp <- read.csv(file="dataset.csv", header=TRUE, sep=",")
-temp1 <- subset(temp, select = -X)
+temp <- subset(temp, select = -X)
+temp <- temp[temp$AVG_CALL_DURATION_LAST_1D<=temp$MAX_CALL_DURATION_LAST_1D, ]
+temp <- temp[temp$AVG_CALL_DURATION_LAST_3D<=temp$MAX_CALL_DURATION_LAST_3D, ]
+temp <- temp[temp$AVG_CALL_DURATION_LAST_7D<=temp$MAX_CALL_DURATION_LAST_7D, ]
 
 
 ui2 <-dashboardPage(
@@ -48,6 +51,7 @@ ui2 <-dashboardPage(
     sidebarMenu(
       menuItem("Dashboard", tabName = "dashboard", icon = icon("dashboard")),
       menuItem("Dashboard 2", tabName = "dashboard2", icon = icon("dashboard")),
+      menuItem("Dashboard 3", tabName = "dashboard3", icon = icon("dashboard")),
       menuItem("Create User", tabName = "createUser", icon = icon("th"))
     )
   ),
@@ -117,6 +121,17 @@ ui2 <-dashboardPage(
               ))
               
       ),
+      
+      tabItem(tabName = "dashboard3",
+              fluidRow( box(
+                status = "primary"
+                ,solidHeader = FALSE 
+                ,collapsible = TRUE 
+                ,plotOutput("grid4",height = 320)
+              ))
+              
+      ),
+      
       tabItem(tabName ="createUser",
           box(
             textInput("name", "Name", ""),
@@ -126,11 +141,13 @@ ui2 <-dashboardPage(
     )
   )
 )
-
+index<-0
 get_new_data <- function(){
-  data <- fun2()
-  print(data)
-  print('---------------------------------------')
+  #data <- fun2()
+  #print(data)
+  #print('---------------------------------------')
+  data <- temp[index, ]
+  index <<- index +1
   return(data)
 }
 values <<-NULL
@@ -140,6 +157,7 @@ update_data <- function(){
   values
 }
 
+
 server <- function(input, output, session) {
   valueBoxReacts <- reactiveValues()
   new_values <- reactive({data <- get_new_data()
@@ -148,7 +166,7 @@ server <- function(input, output, session) {
   
   shinyjs::hide(id = "add-user")
   shinyjs::hide(id = "Sidebar")
-  index<-0
+  
  
   output$selected_var <- renderText({ 
     paste("You have selected", input$var)
@@ -222,6 +240,16 @@ server <- function(input, output, session) {
     
   })
   
+  output$value3 <- renderValueBox({
+    valueBox(
+      formatC(valueBoxReacts$num_call, format="d", big.mark=',')
+      ,"Total number of calls"
+      ,icon = icon("stats",lib='glyphicon')
+      ,color = "green")
+    
+    
+  })
+  
   #output$var<- var
   
   
@@ -247,7 +275,7 @@ server <- function(input, output, session) {
     update_data()
     invalidateLater(1000, session)
     
-      gg <- ggplot(data=nvalues, aes_string(x = input$var2,fill = "CALLER_COUNTRY")) + 
+      gg <- ggplot(data=nvalues, aes_string(x = input$var2,fill = "CODE")) + #zbog koristenja dataset.csv preimenovano iz CALLER_COUNTRY u CODE
         geom_histogram(bins = 10) + xlab(label = input$var2 )
       
       gg
@@ -261,8 +289,22 @@ server <- function(input, output, session) {
     nvalues <- update_data()
     invalidateLater(1000, session)
     
-    gg <- ggplot(data=nvalues, aes_string(x = input$var2,fill = "CALLER_COUNTRY")) + 
+    gg <- ggplot(data=nvalues, aes_string(x = input$var2,fill = "CODE")) + #zbog koristenja dataset.csv preimenovano iz CALLER_COUNTRY u CODE
       geom_histogram(bins = 10) + xlab(label = input$var2 )
+    
+    gg
+    
+    
+  })
+  
+  output$grid4 <- renderPlot({
+    req(credentials()$user_auth)
+    nvalues <- update_data()
+    invalidateLater(1000, session)
+    
+    gg <- ggplot(data=nvalues, aes(x = CALL_DATE, y = mean(AVG_CALL_DURATION_LAST_1D))) + 
+      geom_bar(stat = "identity", mapping = aes(fill = CALL_DATE)) + guides(fill=FALSE)
+      #geom_bar(mapping = aes(x = CALL_DATE,fill = CALL_DATE)) + guides(fill=FALSE)
     
     gg
     
