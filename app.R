@@ -78,7 +78,7 @@ ui2 <-dashboardPage(
       tabItem(tabName = "subitem1",
               
               fluidRow(
-                column(width = 5,
+                div(id="auth", column(width = 5,
                        valueBoxOutput("value1",width = NULL),
                        box(
                          width = NULL,
@@ -88,7 +88,7 @@ ui2 <-dashboardPage(
                          ,collapsible = TRUE 
                          ,plotOutput("grid",height = 320)
                        ) ,
-                       box(width = NULL,height = 80,selectInput("var", 
+                        box(width = NULL,height = 80,selectInput("var", 
                                                                 label = "Choose type of call duration to be displayed",
                                                                 choices = keyedList,
                                                                 selected = "Average")
@@ -114,7 +114,7 @@ ui2 <-dashboardPage(
                                   
                                   
                        )
-              )),
+              ))),
       
       
       tabItem(tabName = "subitem2",
@@ -162,6 +162,7 @@ server <- function(input, output, session) {
   
   shinyjs::hide(id = "add-user")
   shinyjs::hide(id = "Sidebar")
+  shinyjs::hide(id = "auth")
   
   
   output$selected_var <- renderText({ 
@@ -186,11 +187,13 @@ server <- function(input, output, session) {
       shinyjs::show(id = "add-user")
       shinyjs::show(id = "box1")
       shinyjs::show(id = "box2")
+      shinyjs::show(id = "auth")
     } else {
       shinyjs::hide(id = "Sidebar")
       shinyjs::hide(id = "add-user")
       shinyjs::hide(id = "box1")
       shinyjs::hide(id = "box2")
+      shinyjs::hide(id = "auth")
     }
     
     
