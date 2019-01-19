@@ -44,16 +44,25 @@ temp <- temp[temp$AVG_CALL_DURATION_LAST_1D<=temp$MAX_CALL_DURATION_LAST_1D, ]
 temp <- temp[temp$AVG_CALL_DURATION_LAST_3D<=temp$MAX_CALL_DURATION_LAST_3D, ]
 temp <- temp[temp$AVG_CALL_DURATION_LAST_7D<=temp$MAX_CALL_DURATION_LAST_7D, ]
 
+addKeys = function(nested_Vector){
+  keyed_nl = list()
+  for (a in names(nested_Vector))
+    keyed_nl[[a]] = paste0(a, "-", nested_Vector[a])
+  keyed_nl
+}
+
+VectorOfItemsWithNames = c("Average" = "AVG_CALL_DURATION_LAST_1D", 
+                         "Total" = "TOTAL_CALL_DURATION_LAST_1D",
+                         "Maximum" = "MAX_CALL_DURATION_LAST_1D", 
+                         "Minimum" = "MIN_CALL_DURATION_LAST_1D")
+
+keyedList = addKeys(VectorOfItemsWithNames)
+
 
 ui2 <-dashboardPage(
-  dashboardHeader(title ="title"),
+  dashboardHeader(title ="RKafka"),
   dashboardSidebar(
-    sidebarMenu(
-      menuItem("Dashboard", tabName = "dashboard", icon = icon("dashboard")),
-      menuItem("Dashboard 2", tabName = "dashboard2", icon = icon("dashboard")),
-      menuItem("Dashboard 3", tabName = "dashboard3", icon = icon("dashboard")),
-      menuItem("Create User", tabName = "createUser", icon = icon("th"))
-    )
+    sidebarMenuOutput("menu")
   ),
   dashboardBody(
     
@@ -66,7 +75,7 @@ ui2 <-dashboardPage(
     
     tabItems(
       # First tab content
-      tabItem(tabName = "dashboard",
+      tabItem(tabName = "subitem1",
     
               fluidRow(
                 column(width = 5,
@@ -79,12 +88,9 @@ ui2 <-dashboardPage(
                          ,plotOutput("grid",height = 320)
                        ) ,
                        box(width = NULL,height = 80,selectInput("var", 
-                                                                label = "Choose a variable to display",
-                                                                choices = c("AVG_CALL_DURATION_LAST_1D", 
-                                                                            "TOTAL_CALL_DURATION_LAST_1D",
-                                                                            "MAX_CALL_DURATION_LAST_1D", 
-                                                                            "MIN_CALL_DURATION_LAST_1D"),
-                                                                selected = "AVG_CALL_DURATION_LAST_1D")
+                                                                label = "Choose type of call duration to be displayed",
+                                                                choices = keyedList,
+                                                                selected = "Average")
                 
                
                     
@@ -97,12 +103,9 @@ ui2 <-dashboardPage(
                   ,collapsible = TRUE 
                   ,plotOutput("grid2",height = 320)
                 ),box(width = NULL,height = 80,selectInput("var2", 
-                                                           label = "Choose a variable to display",
-                                                           choices = c("AVG_CALL_DURATION_LAST_1D", 
-                                                                       "TOTAL_CALL_DURATION_LAST_1D",
-                                                                       "MAX_CALL_DURATION_LAST_1D", 
-                                                                       "MIN_CALL_DURATION_LAST_1D"),
-                                                           selected = "AVG_CALL_DURATION_LAST_1D")
+                                                           label = "Choose type of call duration to be displayed",
+                                                           choices = keyedList,
+                                                           selected = "Average")
                       
                 )
       
@@ -111,23 +114,13 @@ ui2 <-dashboardPage(
               )
       )),
       
-      # Second tab content
-      tabItem(tabName = "dashboard2",
+      
+      tabItem(tabName = "subitem2",
               fluidRow( box(
                 status = "primary"
                 ,solidHeader = FALSE 
                 ,collapsible = TRUE 
                 ,plotOutput("grid3",height = 320)
-              ))
-              
-      ),
-      
-      tabItem(tabName = "dashboard3",
-              fluidRow( box(
-                status = "primary"
-                ,solidHeader = FALSE 
-                ,collapsible = TRUE 
-                ,plotOutput("grid4",height = 320)
               ))
               
       ),
@@ -141,6 +134,8 @@ ui2 <-dashboardPage(
     )
   )
 )
+
+
 index<-0
 get_new_data <- function(){
   #data <- fun2()
@@ -157,17 +152,16 @@ update_data <- function(){
   values
 }
 
-
 server <- function(input, output, session) {
   valueBoxReacts <- reactiveValues()
   new_values <- reactive({data <- get_new_data()
-                            data})
- 
+  data})
+  
   
   shinyjs::hide(id = "add-user")
   shinyjs::hide(id = "Sidebar")
   
- 
+  
   output$selected_var <- renderText({ 
     paste("You have selected", input$var)
   })
@@ -183,16 +177,16 @@ server <- function(input, output, session) {
                             log_out = reactive(logout_init()))
   
   user_data <- reactive({credentials()$info})
-
+  
   observe({
     if(credentials()$user_auth && credentials()$info$permissions == "admin") {
       shinyjs::show(id = "Sidebar")
       shinyjs::show(id = "add-user")
     } else {
-     shinyjs::hide(id = "Sidebar")
+      shinyjs::hide(id = "Sidebar")
       shinyjs::hide(id = "add-user")
     }
-   
+    
     
   })
   
@@ -217,10 +211,11 @@ server <- function(input, output, session) {
   
   
   
-
+  
   #output$var<- var
-
+  
   output$value1 <- renderValueBox({
+    req(credentials()$user_auth)
     valueBox(
       formatC(paste(valueBoxReacts$max_call,"s"), format="d", big.mark=',')
       ,"Longest call in seconds"
@@ -230,7 +225,9 @@ server <- function(input, output, session) {
     
   })
   
+  
   output$value2 <- renderValueBox({
+    req(credentials()$user_auth)
     valueBox(
       formatC(valueBoxReacts$num_call, format="d", big.mark=',')
       ,"Total number of calls"
@@ -240,15 +237,16 @@ server <- function(input, output, session) {
     
   })
   
-  output$value3 <- renderValueBox({
-    valueBox(
-      formatC(valueBoxReacts$num_call, format="d", big.mark=',')
-      ,"Total number of calls"
-      ,icon = icon("stats",lib='glyphicon')
-      ,color = "green")
-    
-    
+  output$menu <- renderMenu({
+    req(credentials()$user_auth)
+    sidebarMenu(
+      menuItem("Charts", icon = icon("bar-chart-o"), startExpanded = TRUE,
+               menuSubItem("Call Duration", tabName = "subitem1"),
+               menuSubItem("Date", tabName = "subitem2")),
+      menuItem("Create User", tabName = "createUser", icon = icon("users"))
+    )
   })
+  
   
   #output$var<- var
   
@@ -260,13 +258,13 @@ server <- function(input, output, session) {
     valueBoxReacts$max_call <- max(nvalues$MAX_CALL_DURATION_LAST_7D)
     valueBoxReacts$num_call <- nrow(nvalues)
     invalidateLater(1000, session)
-    gg <-
-      ggplot(nvalues, aes_string(x = "ID", y =input$var))
-    gg <- gg + geom_point(col = "brown") + geom_line(col = "brown") + theme_bw() + labs(x="Time")
-   
+    gg <-                         #format(Sys.time(), format="%H:%M:%S") ---------------triba trenutno vrime stavit na x os
+      ggplot(nvalues[1:25,], aes_string(x = "ID", y =strsplit(input$var, "-")[[1]][2]))
+    gg <- gg + geom_point(col = "brown") + geom_line(col = "brown") + theme_bw() + labs(x="Time", y=paste(strsplit(input$var, "-")[[1]][1], "call duration", sep=" "))
+    
     gg
   })
-  
+
   output$grid2 <- renderPlot({
     nvalues <- update_data()
     valueBoxReacts$max_call <- max(nvalues$MAX_CALL_DURATION_LAST_7D)
@@ -275,36 +273,22 @@ server <- function(input, output, session) {
     update_data()
     invalidateLater(1000, session)
     
-      gg <- ggplot(data=nvalues, aes_string(x = input$var2,fill = "CODE")) + #zbog koristenja dataset.csv preimenovano iz CALLER_COUNTRY u CODE
-        geom_histogram(bins = 10) + xlab(label = input$var2 )
-      
-      gg
-          
-  
-  })
-  
-  
-  output$grid3 <- renderPlot({
-    req(credentials()$user_auth)
-    nvalues <- update_data()
-    invalidateLater(1000, session)
-    
-    gg <- ggplot(data=nvalues, aes_string(x = input$var2,fill = "CODE")) + #zbog koristenja dataset.csv preimenovano iz CALLER_COUNTRY u CODE
-      geom_histogram(bins = 10) + xlab(label = input$var2 )
+    gg <- ggplot(data=nvalues, aes_string(x = strsplit(input$var2, "-")[[1]][2],fill = "CODE")) + #zbog koristenja dataset.csv preimenovano iz CALLER_COUNTRY u CODE
+      geom_histogram(bins = 10) + labs(x = paste(strsplit(input$var2, "-")[[1]][1], "call duration", sep=" "), y= "Number of occurrences" )
     
     gg
     
     
   })
   
-  output$grid4 <- renderPlot({
+  output$grid3 <- renderPlot({
     req(credentials()$user_auth)
     nvalues <- update_data()
     invalidateLater(1000, session)
     
-    gg <- ggplot(data=nvalues, aes(x = CALL_DATE, y = mean(AVG_CALL_DURATION_LAST_1D))) + 
-      geom_bar(stat = "identity", mapping = aes(fill = CALL_DATE)) + guides(fill=FALSE)
-      #geom_bar(mapping = aes(x = CALL_DATE,fill = CALL_DATE)) + guides(fill=FALSE)
+    gg <- ggplot(data=nvalues) + 
+      geom_bar(mapping = aes(x = CALL_DATE, fill = CALL_DATE)) + guides(fill=FALSE) + labs(x = "Date", y = "Number of occurrences")
+    
     
     gg
     
@@ -313,11 +297,13 @@ server <- function(input, output, session) {
   
   
   session$onSessionEnded(function() {
- #   DBI::dbDisconnect(mydb)
-  #  print("disconnected")
+    #   DBI::dbDisconnect(mydb)
+    #  print("disconnected")
   })
- 
+  
   
 }
+
+
 
 shinyApp(ui=ui2,server=server)
