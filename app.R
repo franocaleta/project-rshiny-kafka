@@ -52,9 +52,9 @@ addKeys = function(nested_Vector){
 }
 
 VectorOfItemsWithNames = c("Average" = "AVG_CALL_DURATION_LAST_1D", 
-                         "Total" = "TOTAL_CALL_DURATION_LAST_1D",
-                         "Maximum" = "MAX_CALL_DURATION_LAST_1D", 
-                         "Minimum" = "MIN_CALL_DURATION_LAST_1D")
+                           "Total" = "TOTAL_CALL_DURATION_LAST_1D",
+                           "Maximum" = "MAX_CALL_DURATION_LAST_1D", 
+                           "Minimum" = "MIN_CALL_DURATION_LAST_1D")
 
 keyedList = addKeys(VectorOfItemsWithNames)
 
@@ -76,12 +76,13 @@ ui2 <-dashboardPage(
     tabItems(
       # First tab content
       tabItem(tabName = "subitem1",
-    
+              
               fluidRow(
                 column(width = 5,
                        valueBoxOutput("value1",width = NULL),
                        box(
-                         width = NULL
+                         width = NULL,
+                          id = "box1"
                          ,status = "primary"
                          ,solidHeader = FALSE 
                          ,collapsible = TRUE 
@@ -91,28 +92,29 @@ ui2 <-dashboardPage(
                                                                 label = "Choose type of call duration to be displayed",
                                                                 choices = keyedList,
                                                                 selected = "Average")
-                
-               
-                    
-                ) ),column(width = 5, 
-                           valueBoxOutput("value2",width = NULL),
-                           box(
-                  width = NULL
-                  ,status = "primary"
-                  ,solidHeader = FALSE 
-                  ,collapsible = TRUE 
-                  ,plotOutput("grid2",height = 320)
-                ),box(width = NULL,height = 80,selectInput("var2", 
-                                                           label = "Choose type of call duration to be displayed",
-                                                           choices = keyedList,
-                                                           selected = "Average")
-                      
-                )
-      
                            
                            
-              )
-      )),
+                           
+                       ) ),column(width = 5, 
+                                  valueBoxOutput("value2",width = NULL),
+                                  box(
+                                    width = NULL,
+                                    id = "box2"
+                                    ,status = "primary"
+                                    ,solidHeader = FALSE 
+                                    ,collapsible = TRUE 
+                                    ,plotOutput("grid2",height = 320)
+                                  ),box(width = NULL,height = 80,selectInput("var2", 
+                                                                             label = "Choose type of call duration to be displayed",
+                                                                             choices = keyedList,
+                                                                             selected = "Average")
+                                        
+                                  )
+                                  
+                                  
+                                  
+                       )
+              )),
       
       
       tabItem(tabName = "subitem2",
@@ -126,11 +128,11 @@ ui2 <-dashboardPage(
       ),
       
       tabItem(tabName ="createUser",
-          box(
-            textInput("name", "Name", ""),
-            textInput("pw", "Password",""),
-            actionButton("addUser", "Add User", class="button-primary")
-           ))
+              box(
+                textInput("name", "Name", ""),
+                textInput("pw", "Password",""),
+                actionButton("addUser", "Add User", class="button-primary")
+              ))
     )
   )
 )
@@ -182,9 +184,13 @@ server <- function(input, output, session) {
     if(credentials()$user_auth && credentials()$info$permissions == "admin") {
       shinyjs::show(id = "Sidebar")
       shinyjs::show(id = "add-user")
+      shinyjs::show(id = "box1")
+      shinyjs::show(id = "box2")
     } else {
       shinyjs::hide(id = "Sidebar")
       shinyjs::hide(id = "add-user")
+      shinyjs::hide(id = "box1")
+      shinyjs::hide(id = "box2")
     }
     
     
@@ -264,7 +270,7 @@ server <- function(input, output, session) {
     
     gg
   })
-
+  
   output$grid2 <- renderPlot({
     nvalues <- update_data()
     valueBoxReacts$max_call <- max(nvalues$MAX_CALL_DURATION_LAST_7D)
