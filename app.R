@@ -78,7 +78,7 @@ ui2 <-dashboardPage(
       tabItem(tabName = "subitem1",
               
               fluidRow(
-                div(id="auth", column(width = 5,
+                div(id="div1", column(width = 5,
                        valueBoxOutput("value1",width = NULL),
                        box(
                          width = NULL,
@@ -118,21 +118,21 @@ ui2 <-dashboardPage(
       
       
       tabItem(tabName = "subitem2",
-              fluidRow( box(
+              fluidRow(div(id="div2",  box(
                 status = "primary"
                 ,solidHeader = FALSE 
                 ,collapsible = TRUE 
                 ,plotOutput("grid3",height = 320)
               ))
               
-      ),
+      )),
       
       tabItem(tabName ="createUser",
-              box(
+              div(id="div3", box(
                 textInput("name", "Name", ""),
                 textInput("pw", "Password",""),
                 actionButton("addUser", "Add User", class="button-primary")
-              ))
+              )))
     )
   )
 )
@@ -160,9 +160,9 @@ server <- function(input, output, session) {
   data})
   
   
-  shinyjs::hide(id = "add-user")
-  shinyjs::hide(id = "Sidebar")
-  shinyjs::hide(id = "auth")
+  #shinyjs::hide(id = "add-user")
+  #shinyjs::hide(id = "Sidebar")
+  #shinyjs::hide(id = "auth")
   
   
   output$selected_var <- renderText({ 
@@ -183,17 +183,21 @@ server <- function(input, output, session) {
   
   observe({
     if(credentials()$user_auth && credentials()$info$permissions == "admin") {
-      shinyjs::show(id = "Sidebar")
-      shinyjs::show(id = "add-user")
-      shinyjs::show(id = "box1")
-      shinyjs::show(id = "box2")
-      shinyjs::show(id = "auth")
+      #shinyjs::show(id = "Sidebar")
+      #shinyjs::show(id = "add-user")
+      shinyjs::show(id = "div1")
+      shinyjs::show(id = "div2")
+      shinyjs::show(id = "div3")
+    } else if(credentials()$user_auth && credentials()$info$permissions == "user") {
+      #shinyjs::hide(id = "Sidebar")
+      #shinyjs::hide(id = "add-user")
+      shinyjs::show(id = "div1")
+      shinyjs::show(id = "div2")
+      shinyjs::hide(id = "div3")
     } else {
-      shinyjs::hide(id = "Sidebar")
-      shinyjs::hide(id = "add-user")
-      shinyjs::hide(id = "box1")
-      shinyjs::hide(id = "box2")
-      shinyjs::hide(id = "auth")
+      shinyjs::hide(id = "div1")
+      shinyjs::hide(id = "div2")
+      shinyjs::hide(id = "div3")
     }
     
     
@@ -248,12 +252,15 @@ server <- function(input, output, session) {
   
   output$menu <- renderMenu({
     req(credentials()$user_auth)
-    sidebarMenu(
-      menuItem("Charts", icon = icon("bar-chart-o"), startExpanded = TRUE,
-               menuSubItem("Call Duration", tabName = "subitem1"),
-               menuSubItem("Date", tabName = "subitem2")),
-      menuItem("Create User", tabName = "createUser", icon = icon("users"))
-    )
+    menu<- 
+      sidebarMenu(
+        menuItem("Charts", icon = icon("bar-chart-o"), startExpanded = TRUE,
+                 menuSubItem("Call Duration", tabName = "subitem1"),
+                 menuSubItem("Date", tabName = "subitem2")),
+        if( credentials()$info$permissions == "admin") {
+          menuItem("Create User", tabName = "createUser", icon = icon("users"))
+        })
+    menu
   })
   
   
