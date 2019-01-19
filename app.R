@@ -70,8 +70,9 @@ ui2 <-dashboardPage(
     
     useShinyalert(),
     
-    div(class = "pull-right", shinyauthr::logoutUI(id = "logout")),
+    div(id="button", class = "pull-right", shinyauthr::logoutUI(id = "logout")),
     shinyauthr::loginUI(id = "login"),
+    
     
     tabItems(
       # First tab content
@@ -168,32 +169,55 @@ server <- function(input, output, session) {
   output$selected_var <- renderText({ 
     paste("You have selected", input$var)
   })
-  logout_init <- callModule(shinyauthr::logout, 
-                            id = "logout", 
-                            active = reactive(credentials()$user_auth))
+  refresh_logout_init<- function() {
+    logout_init <- callModule(shinyauthr::logout, 
+                              id = "logout", 
+                              active = reactive(credentials()$user_auth))
+    return (logout_init)
+  } 
   
-  credentials <- callModule(shinyauthr::login, 
-                            id = "login", 
-                            data = user_base,
-                            user_col = user,
-                            pwd_col = password,
-                            log_out = reactive(logout_init()))
+  refresh_credentitals <- function() {
+    credentials <- callModule(shinyauthr::login, 
+                              id = "login", 
+                              data = user_base,
+                              user_col = user,
+                              pwd_col = password,
+                              log_out = reactive(logout_init()))
+    return (credentials)
+    
+  }
+  
+  logout_init <-refresh_logout_init();
+  credentials <- refresh_credentitals();
   
   user_data <- reactive({credentials()$info})
   
   observe({
-    if(credentials()$user_auth && credentials()$info$permissions == "admin") {
-      shinyjs::show(id = "Sidebar")
-      shinyjs::show(id = "add-user")
+    print(credentials()$user_auth);
+    if(credentials()$user_auth) {
+      if( credentials()$info$permissions == "admin") {
+        shinyjs::show(id = "add-user")
+        
+      }
+    #  shinyjs::toggle(id = "login-panel")
+     # shinyjs::toggle(id = "button")
+      
+      shinyjs::show(id = "button")
       shinyjs::show(id = "box1")
       shinyjs::show(id = "box2")
       shinyjs::show(id = "auth")
+      
+    #  shinyjs::hide(id="login-panel")
     } else {
+      shinyjs::hide(id = "button")
+    #  shinyjs::toggle(id = "button")
+
       shinyjs::hide(id = "Sidebar")
       shinyjs::hide(id = "add-user")
       shinyjs::hide(id = "box1")
       shinyjs::hide(id = "box2")
       shinyjs::hide(id = "auth")
+      
     }
     
     
@@ -209,6 +233,29 @@ server <- function(input, output, session) {
         stringsAsFactors = FALSE
       )
       DBI::dbWriteTable(mydb, "users", new_user, append = TRUE)
+      
+      res <- dbSendQuery(mydb, "SELECT * FROM users")
+     print(credentials()$info)
+      
+      user_base<<-
+        data.frame(dbFetch(res))
+      dbClearResult(res)
+      dupl <- data.frame(credentials()$info);
+      
+     # logout_init <<- refresh_logout_init();
+    #  logout_init <<- refresh_logout_init();
+      credentials <<- refresh_credentitals();
+     
+      # credentials <<- shiny::reactiveValues(user_auth = TRUE, info = dupl$info);
+    #  credentials$info <<- "admin";
+   #   print(credentials)
+      shinyjs::toggle(id = "panel")
+    #  shinyjs::toggle(id = "button", anim = TRUE, time = 1, animType = "fade")
+     # credentials()# <-- shiny::reactiveValues(user_auth = TRUE, info = dupl$info);
+    #  credentials <-- shiny::reactiveValues(user_auth = TRUE, info = dupl$info);
+      
+
+
       shinyalert("Success", "New User Added", type = "success")
     }
   })
@@ -248,12 +295,15 @@ server <- function(input, output, session) {
   
   output$menu <- renderMenu({
     req(credentials()$user_auth)
-    sidebarMenu(
+    menu<- 
+      sidebarMenu(
       menuItem("Charts", icon = icon("bar-chart-o"), startExpanded = TRUE,
                menuSubItem("Call Duration", tabName = "subitem1"),
                menuSubItem("Date", tabName = "subitem2")),
+      if( credentials()$info$permissions == "admin") {
       menuItem("Create User", tabName = "createUser", icon = icon("users"))
-    )
+    })
+    menu
   })
   
   
