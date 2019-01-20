@@ -1,5 +1,6 @@
 #install.packages("shinyjs")
 #install.packages("shinydashboard")
+#library(shiny.users)
 library(shiny)
 library(magrittr)
 library(jsonlite)
@@ -70,10 +71,33 @@ ui2 <-dashboardPage(
     
     useShinyalert(),
     
-    div(id="button", class = "pull-right", shinyauthr::logoutUI(id = "logout")),
-    shinyauthr::loginUI(id = "login"),
-    
-    
+  #  div(id="button", class = "pull-right", shinyauthr::logoutUI(id = "logout")),
+   # shinyauthr::loginUI(id = "login"),
+    shiny::div(id ="panel", style = "width: 500px; max-width: 100%; margin: 0 auto; padding: 20px;",
+               shiny::wellPanel(
+                 shiny::tags$h2("Please Log In", class = "text-center", style = "padding-top: 0;"),
+                 
+                 shiny::textInput("username" ,"Username"),
+                 
+                 shiny::passwordInput("password", "Password"),
+                 
+                 shiny::div(
+                   style = "text-align: center;",
+                   shiny::actionButton("button", "Log in", class = "btn-primary", style = "color: white;")
+                 ),
+                 
+                 shinyjs::hidden(
+                   shiny::div(id = "error",
+                              shiny::tags$p("Invalid username or password",
+                                            style = "color: red; font-weight: bold; padding-top: 5px;", class = "text-center"))
+                 )
+                 )),
+            
+   
+ 
+  shinyjs::hidden(
+    shiny::actionButton("logout", "Log Out", class = "btn-danger pull-right", style = "color: white;")
+  ),
     tabItems(
       # First tab content
       tabItem(tabName = "subitem1",
@@ -135,8 +159,8 @@ ui2 <-dashboardPage(
                 actionButton("addUser", "Add User", class="button-primary")
               ))
     )
-  )
-)
+  ))
+
 
 
 index<-0
@@ -161,6 +185,8 @@ server <- function(input, output, session) {
   data})
   
   
+  credentials <- shiny::reactiveValues(user_auth = FALSE, info = NULL)
+ # print(session)
   shinyjs::hide(id = "add-user")
   shinyjs::hide(id = "Sidebar")
   shinyjs::hide(id = "auth")
@@ -169,54 +195,36 @@ server <- function(input, output, session) {
   output$selected_var <- renderText({ 
     paste("You have selected", input$var)
   })
-  refresh_logout_init<- function() {
-    logout_init <- callModule(shinyauthr::logout, 
-                              id = "logout", 
-                              active = reactive(credentials()$user_auth))
-    return (logout_init)
-  } 
+ 
+ # credentials <- refresh_credentitals();
   
-  refresh_credentitals <- function() {
-    credentials <- callModule(shinyauthr::login, 
-                              id = "login", 
-                              data = user_base,
-                              user_col = user,
-                              pwd_col = password,
-                              log_out = reactive(logout_init()))
-    return (credentials)
-    
-  }
-  
-  logout_init <-refresh_logout_init();
-  credentials <- refresh_credentitals();
-  
-  user_data <- reactive({credentials()$info})
+ # user_data <- reactive({credentials()$info})
   
   observe({
-    print(credentials()$user_auth);
-    if(credentials()$user_auth) {
-      if( credentials()$info$permissions == "admin") {
+   # print(credentials()$user_auth);
+    if(credentials$user_auth) {
+     # if( credentials()$info$permissions == "admin") {
         shinyjs::show(id = "add-user")
         
-      }
-    #  shinyjs::toggle(id = "login-panel")
-     # shinyjs::toggle(id = "button")
+   #   }
+   #   shinyjs::toggle(id = "login-panel")
+   #   shinyjs::toggle(id = "button")
       
-      shinyjs::show(id = "button")
+  #    shinyjs::show(id = "button")
       shinyjs::show(id = "box1")
       shinyjs::show(id = "box2")
-      shinyjs::show(id = "auth")
+     shinyjs::show(id = "auth")
       
-    #  shinyjs::hide(id="login-panel")
+ #     shinyjs::hide(id="login-panel")
     } else {
-      shinyjs::hide(id = "button")
-    #  shinyjs::toggle(id = "button")
-
-      shinyjs::hide(id = "Sidebar")
-      shinyjs::hide(id = "add-user")
-      shinyjs::hide(id = "box1")
-      shinyjs::hide(id = "box2")
-      shinyjs::hide(id = "auth")
+ #     shinyjs::hide(id = "button")
+ #     shinyjs::toggle(id = "button")
+#
+     shinyjs::hide(id = "Sidebar")
+     shinyjs::hide(id = "add-user")
+     shinyjs::hide(id = "box1")
+    shinyjs::hide(id = "box2")
+    shinyjs::hide(id = "auth")
       
     }
     
@@ -235,31 +243,49 @@ server <- function(input, output, session) {
       DBI::dbWriteTable(mydb, "users", new_user, append = TRUE)
       
       res <- dbSendQuery(mydb, "SELECT * FROM users")
-     print(credentials()$info)
       
       user_base<<-
         data.frame(dbFetch(res))
       dbClearResult(res)
-      dupl <- data.frame(credentials()$info);
-      
-     # logout_init <<- refresh_logout_init();
-    #  logout_init <<- refresh_logout_init();
-      credentials <<- refresh_credentitals();
-     
-      # credentials <<- shiny::reactiveValues(user_auth = TRUE, info = dupl$info);
-    #  credentials$info <<- "admin";
-   #   print(credentials)
-      shinyjs::toggle(id = "panel")
-    #  shinyjs::toggle(id = "button", anim = TRUE, time = 1, animType = "fade")
-     # credentials()# <-- shiny::reactiveValues(user_auth = TRUE, info = dupl$info);
-    #  credentials <-- shiny::reactiveValues(user_auth = TRUE, info = dupl$info);
-      
-
 
       shinyalert("Success", "New User Added", type = "success")
     }
   })
   
+  observeEvent(input$button, {
+      username <- input$username;
+      password<- input$password;
+      user <- data.frame(username, password)
+      print(user)
+      res <- dbSendQuery(mydb, "SELECT * FROM users")
+      users <- data.frame(dbFetch(res))
+      if( nrow(merge(user,users))>0) {
+        shinyjs::hide(id = "panel")
+        shinyjs::show(id ="logout")
+        shinyjs::hide(id ="error")
+        credentials$user_auth <- TRUE
+        print(users)
+        
+        credentials$info <- subset(users, user == username)
+        print(credentials$info)
+        print("postoji")
+       
+      }
+      else {
+        shinyjs::show(id ="error");
+      }
+  })
+  
+  observeEvent(input$logout, {
+      credentials$user_auth <- FALSE
+      credentials$info <- NULL
+      shinyjs::show(id = "panel")
+      shinyjs::hide(id ="logout")
+      shinyjs::hide(id ="error")
+      
+    }
+   
+  )
   
   
   
@@ -271,7 +297,7 @@ server <- function(input, output, session) {
   #output$var<- var
   
   output$value1 <- renderValueBox({
-    req(credentials()$user_auth)
+   req(credentials$user_auth)
     valueBox(
       formatC(paste(valueBoxReacts$max_call,"s"), format="d", big.mark=',')
       ,"Longest call in seconds"
@@ -283,7 +309,7 @@ server <- function(input, output, session) {
   
   
   output$value2 <- renderValueBox({
-    req(credentials()$user_auth)
+    req(credentials$user_auth)
     valueBox(
       formatC(valueBoxReacts$num_call, format="d", big.mark=',')
       ,"Total number of calls"
@@ -294,15 +320,16 @@ server <- function(input, output, session) {
   })
   
   output$menu <- renderMenu({
-    req(credentials()$user_auth)
+    req(credentials$user_auth)
     menu<- 
       sidebarMenu(
       menuItem("Charts", icon = icon("bar-chart-o"), startExpanded = TRUE,
                menuSubItem("Call Duration", tabName = "subitem1"),
                menuSubItem("Date", tabName = "subitem2")),
-      if( credentials()$info$permissions == "admin") {
+ #     if( credentials()$info$permissions == "admin") {
       menuItem("Create User", tabName = "createUser", icon = icon("users"))
-    })
+ #   }
+ )
     menu
   })
   
@@ -312,7 +339,7 @@ server <- function(input, output, session) {
   
   
   output$grid <- renderPlot({
-    req(credentials()$user_auth)
+    req(credentials$user_auth)
     nvalues <- update_data()
     valueBoxReacts$max_call <- max(nvalues$MAX_CALL_DURATION_LAST_7D)
     valueBoxReacts$num_call <- nrow(nvalues)
@@ -328,7 +355,7 @@ server <- function(input, output, session) {
     nvalues <- update_data()
     valueBoxReacts$max_call <- max(nvalues$MAX_CALL_DURATION_LAST_7D)
     valueBoxReacts$num_call <- nrow(nvalues)
-    req(credentials()$user_auth)
+   # req(credentials()$user_auth)
     update_data()
     invalidateLater(1000, session)
     
@@ -341,7 +368,7 @@ server <- function(input, output, session) {
   })
   
   output$grid3 <- renderPlot({
-    req(credentials()$user_auth)
+    req(credentials$user_auth)
     nvalues <- update_data()
     invalidateLater(1000, session)
     
