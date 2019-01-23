@@ -14,7 +14,7 @@ library(RSQLite)
 library(DBI)
 library(shinyalert)
 library(reticulate)
-#use_python("/usr/local/opt/python/bin/python3.6",required = TRUE)
+use_python("/usr/local/opt/python/bin/python3.6",required = TRUE)
 py_config()
 source_python("create_df.py")
 num <- fun()
@@ -185,7 +185,7 @@ ui2 <- dashboardPage(
                     ,
                     collapsible = TRUE
                     ,
-                    plotOutput("grid3", height = 320)
+                    plotOutput("grid3", height = 520)
                   )),
                 column(
                   width = 5,
@@ -197,7 +197,7 @@ ui2 <- dashboardPage(
                     ,
                     collapsible = TRUE
                     ,
-                    plotOutput("grid4", height = 320)
+                    plotOutput("grid4", height = 520)
                   )
                   
                 )
@@ -467,3 +467,4 @@ server <- function(input, output, session) {
 
 
 shinyApp(ui = ui2, server = server)
+
