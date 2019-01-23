@@ -449,7 +449,7 @@ server <- function(input, output, session) {
     gg <- ggplot(data=nvalues)+
       geom_point(mapping = aes(x=AVG_CALL_DURATION_LAST_1D,y=TOTAL_COUNT,colour=CODE))+
       labs(x="Average call duration",y="Total call count",
-           title = " With longer calls we have smaller number of total calls")
+           title = " With longer calls we have smaller number of total calls") + ylim(0,60)
     gg
     
     
