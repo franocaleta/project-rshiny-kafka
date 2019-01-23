@@ -242,7 +242,9 @@ server <- function(input, output, session) {
   
   
   initialized <- hashmap(c("admin", "user"), c( FALSE,FALSE))
- 
+  for (user in user_base$user ) {
+    initialized[[user]] <- FALSE;
+  }
   observe({
     if( credentials$user_auth && (credentials$info$var1 != input$var1 || credentials$info$var2 != input$var2)) {
       if(!initialized[[credentials$info$user]]) {
@@ -314,7 +316,7 @@ server <- function(input, output, session) {
       user_base <<-
         data.frame(dbFetch(res))
       dbClearResult(res)
-      
+      initialized[[input$name]] = FALSE;
       shinyalert("Success", "New User Added", type = "success")
     }
   })
