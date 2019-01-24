@@ -9,6 +9,7 @@ library(shinyjs)
 library(shinydashboard)
 library(hashmap)
 
+library(dplyr)
 library(lubridate)
 
 library(RSQLite)
@@ -179,15 +180,33 @@ ui2 <- dashboardPage(
       
       
       tabItem(tabName = "subitem2",
+
               fluidRow(div(id ="auth2",
-                box(
-                  status = "primary"
-                  ,
-                  solidHeader = FALSE
-                  ,
-                  collapsible = TRUE
-                  ,
-                  plotOutput("grid3", height = 320)
+                column(
+                  width = 5,
+                  box(
+                    status = "primary",
+                    width = NULL
+                    ,
+                    solidHeader = FALSE
+                    ,
+                    collapsible = TRUE
+                    ,
+                    plotOutput("grid3", height = 520)
+                  )),
+                column(
+                  width = 5,
+                  box(
+                    status = "primary",
+                    width = NULL
+                    ,
+                    solidHeader = FALSE
+                    ,
+                    collapsible = TRUE
+                    ,
+                    plotOutput("grid4", height = 520)
+                  )
+                  
                 )
               ))),
       
@@ -355,7 +374,7 @@ server <- function(input, output, session) {
     shinyjs::hide(id = "error")
     
   })
-
+  
   output$value1 <- renderValueBox({
     req(credentials$user_auth)
     valueBox(
@@ -458,12 +477,29 @@ server <- function(input, output, session) {
     req(credentials$user_auth)
     nvalues <- update_data()
     invalidateLater(1000, session)
-    
+    nvalues$DATE <- as.Date(nvalues$CALL_DATE,tryFormats = c("%Y-%d-%m"))
+    nvalues$maxDate <-max(nvalues$DATE)
+    nvalues <- filter(nvalues,nvalues$maxDate-nvalues$DATE<6) #only show last 5 days
     gg <- ggplot(data = nvalues) +
       geom_bar(mapping = aes(x = CALL_DATE, fill = CALL_DATE)) + guides(fill =
                                                                           FALSE) + labs(x = "Date", y = "Number of occurrences")
     
     
+    gg
+    
+    
+  })
+  
+  
+  output$grid4 <- renderPlot({
+    req(credentials$user_auth)
+    nvalues <- update_data()
+    invalidateLater(1000, session)
+    nvalues$TOTAL_COUNT <- nvalues$CALLEE_CALL_COUNT_LAST_1D+nvalues$CALLER_CALL_COUNT_LAST_1D
+    gg <- ggplot(data=nvalues)+
+      geom_point(mapping = aes(x=AVG_CALL_DURATION_LAST_1D,y=TOTAL_COUNT,colour=CODE))+
+      labs(x="Average call duration",y="Total call count",
+           title = " With longer calls we have smaller number of total calls") + ylim(0,60)
     gg
     
     
@@ -481,3 +517,4 @@ server <- function(input, output, session) {
 
 
 shinyApp(ui = ui2, server = server)
+
