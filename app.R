@@ -7,6 +7,8 @@ library(ggplot2)
 library(shinyauthr)
 library(shinyjs)
 library(shinydashboard)
+library(hashmap)
+
 library(dplyr)
 library(lubridate)
 
@@ -14,6 +16,7 @@ library(RSQLite)
 library(DBI)
 library(shinyalert)
 library(reticulate)
+library(hashmap)
 #use_python("/usr/local/opt/python/bin/python3.6",required = TRUE)
 #py_config()
 source_python("create_df.py")
@@ -27,9 +30,12 @@ user_base <- data.frame(
     digest::digest("admin", algo = "md5")
   ),
   permissions = c("user", "admin"),
-  name = c("User", "Admin"),
+  var1 = c("Maximum-MAX_CALL_DURATION_LAST_1D", "Minimum-MIN_CALL_DURATION_LAST_1D"),
+  var2 = c("Maximum-MAX_CALL_DURATION_LAST_1D", "Minimum-MIN_CALL_DURATION_LAST_1D"),
   stringsAsFactors = FALSE
 )
+
+#DBI::dbRemoveTable(mydb,"users")
 
 if (!DBI::dbExistsTable(mydb, "users")) {
   DBI::dbWriteTable(mydb, "users", user_base)
@@ -130,7 +136,7 @@ ui2 <- dashboardPage(
                     width = NULL,
                     height = 80,
                     selectInput(
-                      "var",
+                      "var1",
                       label = "Choose type of call duration to be displayed",
                       choices = keyedList,
                       selected = "Average"
@@ -164,17 +170,18 @@ ui2 <- dashboardPage(
                       choices = keyedList,
                       selected = "Average"
                     )
-                    
-                  )
+                    )
                   
                   
                   
-                )
+    
+                              )
               ))),
       
       
       tabItem(tabName = "subitem2",
-              fluidRow(
+
+              fluidRow(div(id ="auth2",
                 column(
                   width = 5,
                   box(
@@ -201,14 +208,14 @@ ui2 <- dashboardPage(
                   )
                   
                 )
-              )),
+              ))),
       
       tabItem(tabName = "createUser",
-              box(
+              div( id ="add-user", box(
                 textInput("name", "Name", ""),
                 textInput("pw", "Password", ""),
                 actionButton("addUser", "Add User", class = "button-primary")
-              ))
+              )))
     )
   )
 )
@@ -244,13 +251,51 @@ server <- function(input, output, session) {
   shinyjs::hide(id = "add-user")
   shinyjs::hide(id = "Sidebar")
   shinyjs::hide(id = "auth")
+  shinyjs::hide(id = "auth2")
   
   
   output$selected_var <- renderText({
-    paste("You have selected", input$var)
+    paste("You have selected", input$var1)
   })
   
+  
+  
+  initialized <- hashmap(c("admin", "user"), c( FALSE,FALSE))
+  for (user in user_base$user ) {
+    initialized[[user]] <- FALSE;
+  }
   observe({
+    if( credentials$user_auth && (credentials$info$var1 != input$var1 || credentials$info$var2 != input$var2)) {
+      if(!initialized[[credentials$info$user]]) {
+        
+        updateSelectInput(session, "var1",
+                          selected = credentials$info$var1);
+        updateSelectInput(session, "var2",
+                          selected = credentials$info$var2);
+        initialized[[credentials$info$user]] <<- TRUE
+      }
+      else {
+        res <- dbSendQuery(mydb, "SELECT * FROM users")
+        users <- data.frame(dbFetch(res))
+        users2<- users  
+        users2[users2$user == credentials$info$user, ]$var2 <- input$var2;
+        users2[users2$user == credentials$info$user, ]$var1 <- input$var1;
+        
+        credentials$info$var1 = input$var1;
+        credentials$info$var2 = input$var2;
+        
+        DBI::dbWriteTable(mydb, "users", users2, overwrite = TRUE);
+        
+        dbClearResult(res)
+        updateSelectInput(session, "var1",
+                          selected = credentials$info$var1);
+        updateSelectInput(session, "var2",
+                          selected = credentials$info$var2);
+      }
+    
+      
+      
+    }
     if (credentials$user_auth) {
       if (credentials$info$permissions == "admin") {
         shinyjs::show(id = "add-user")
@@ -258,6 +303,7 @@ server <- function(input, output, session) {
       shinyjs::show(id = "box1")
       shinyjs::show(id = "box2")
       shinyjs::show(id = "auth")
+      shinyjs::show(id = "auth2")
       
     } else {
       shinyjs::hide(id = "Sidebar")
@@ -265,6 +311,7 @@ server <- function(input, output, session) {
       shinyjs::hide(id = "box1")
       shinyjs::hide(id = "box2")
       shinyjs::hide(id = "auth")
+      shinyjs::hide(id = "auth2")
       
     }
     
@@ -277,7 +324,8 @@ server <- function(input, output, session) {
         user = input$name,
         password = digest::digest(input$pw, algo = "md5"),
         permissions = "user",
-        name = input$name,
+        var1 = 'Minimum-MIN_CALL_DURATION_LAST_1D',
+        var2 = 'Minimum-MIN_CALL_DURATION_LAST_1D',
         stringsAsFactors = FALSE
       )
       DBI::dbWriteTable(mydb, "users", new_user, append = TRUE)
@@ -287,7 +335,7 @@ server <- function(input, output, session) {
       user_base <<-
         data.frame(dbFetch(res))
       dbClearResult(res)
-      
+      initialized[[input$name]] = FALSE;
       shinyalert("Success", "New User Added", type = "success")
     }
   })
@@ -304,9 +352,10 @@ server <- function(input, output, session) {
       shinyjs::hide(id = "panel")
       shinyjs::show(id = "logout")
       shinyjs::hide(id = "error")
+     
+      credentials$info <- subset(users, user == username)
       credentials$user_auth <- TRUE
       
-      credentials$info <- subset(users, user == username)
       print(credentials$info)
       
     }
@@ -317,6 +366,7 @@ server <- function(input, output, session) {
   })
   
   observeEvent(input$logout, {
+    initialized[[credentials$info$user]] <<- FALSE;
     credentials$user_auth <- FALSE
     credentials$info <- NULL
     shinyjs::show(id = "panel")
@@ -394,11 +444,11 @@ server <- function(input, output, session) {
     invalidateLater(1000, session)
     gg <-
       #format(Sys.time(), format="%H:%M:%S") ---------------triba trenutno vrime stavit na x os
-      ggplot(nvalues[1:25, ], aes_string(x = "ID", y = strsplit(input$var, "-")[[1]][2]))
+      ggplot(nvalues[1:25, ], aes_string(x = "ID", y = strsplit(input$var1, "-")[[1]][2]))
     gg <-
       gg + geom_point(col = "brown") + geom_line(col = "brown") + theme_bw() + labs(x =
                                                                                       "Time",
-                                                                                    y = paste(strsplit(input$var, "-")[[1]][1], "call duration", sep = " "))
+                                                                                    y = paste(strsplit(input$var1, "-")[[1]][1], "call duration", sep = " "))
     
     gg
   })
