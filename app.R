@@ -20,8 +20,8 @@ library(hashmap)
 #use_python("/usr/local/opt/python/bin/python3.6",required = TRUE)
 #py_config()
 source_python("create_df.py")
-num <- fun()
-print(num)
+translated <- translated()
+print(translated)
 mydb <- dbConnect(RSQLite::SQLite(), "users.sqlite")
 user_base <- data.frame(
   user = c("user", "admin"),
@@ -39,13 +39,27 @@ user_base <- data.frame(
     "Minimum-MIN_CALL_DURATION_LAST_1D"
   ),
   graph3 = c(2, 2),
+  graph4 = c(100, 100),
   stringsAsFactors = FALSE
 )
 
-#DBI::dbRemoveTable(mydb, "users")
+DBI::dbRemoveTable(mydb, "users")
 
 if (!DBI::dbExistsTable(mydb, "users")) {
-  DBI::dbWriteTable(mydb, "users", user_base)
+  table <- "
+  CREATE TABLE users (
+  user TEXT,
+  password TEXT,
+  permissions TEXT,
+  graph1 TEXT,
+  graph2 TEXT,
+  graph3 INT,
+  graph4 INT,
+  PRIMARY KEY(user)
+  )"
+  
+  dbExecute(mydb, table)
+  DBI::dbWriteTable(mydb, "users", user_base, append = TRUE)
 }
 
 res <- dbSendQuery(mydb, "SELECT * FROM users")
@@ -232,7 +246,17 @@ ui2 <- dashboardPage(
                     ,
                     plotOutput("grid4", height = 520)
                   ),
-                  numericInput("lmt", "Upper limit:", 60, min = 20, max = 5000)
+                  box(
+                    status = "primary",
+                    width = NULL
+                    ,
+                    solidHeader = FALSE
+                    ,
+                    collapsible = TRUE
+                    ,
+                    numericInput("graph4", "Upper limit:", 60, min = 20, max = 5000)
+                    )
+                
                   
                 )
               ))),
@@ -253,7 +277,7 @@ ui2 <- dashboardPage(
 
 index <- 0
 get_new_data <- function() {
-  #data <- fun2()
+  #data <- get_df()
   #print(data)
   #print('---------------------------------------')
   data <- temp[index, ]
@@ -301,9 +325,11 @@ server <- function(input, output, session) {
         (
           credentials$info$graph1 != input$graph1 ||
           credentials$info$graph2 != input$graph2 ||
-          credentials$info$graph3 != input$graph3
+          credentials$info$graph3 != input$graph3 ||
+          credentials$info$graph4 != input$graph4
         )) {
       if (!initialized[[credentials$info$user]]) {
+        initialized[[credentials$info$user]] <<- TRUE
         updateSelectInput(session, "graph1",
                           selected = credentials$info$graph1)
         
@@ -311,7 +337,9 @@ server <- function(input, output, session) {
                           selected = credentials$info$graph2)
         
         updateSliderInput(session, "graph3", value = credentials$info$graph3)
-        initialized[[credentials$info$user]] <<- TRUE
+        
+        updateNumericInput(session, "graph4",
+                           value = credentials$info$graph4)
       }
       
     }
@@ -351,6 +379,7 @@ server <- function(input, output, session) {
           graph1 = 'Minimum-MIN_CALL_DURATION_LAST_1D',
           graph2 = 'Minimum-MIN_CALL_DURATION_LAST_1D',
           graph3 = 2,
+          graph4 = 100,
           stringsAsFactors = FALSE
         )
         DBI::dbWriteTable(mydb, "users", new_user, append = TRUE)
@@ -408,6 +437,9 @@ server <- function(input, output, session) {
     
     users2[users2$user == credentials$info$user,]$graph3 <-
       input$graph3
+    
+    users2[users2$user == credentials$info$user,]$graph4 <-
+      input$graph4
     DBI::dbWriteTable(mydb, "users", users2, overwrite = TRUE)
     
     
@@ -547,7 +579,7 @@ server <- function(input, output, session) {
     gg <- ggplot(data = nvalues) +
       geom_point(mapping = aes(x = AVG_CALL_DURATION_LAST_1D, y = TOTAL_COUNT, colour =
                                  CODE)) +
-      labs(x = "Average call duration", y = "Total call count") + ylim(0, input$lmt)
+      labs(x = "Average call duration", y = "Total call count") + ylim(0, input$graph4)
     gg
     
     
