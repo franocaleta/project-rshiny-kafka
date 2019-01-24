@@ -9,7 +9,6 @@ library(shinyauthr)
 library(shinyjs)
 library(shinydashboard)
 library(hashmap)
-
 library(dplyr)
 library(lubridate)
 
@@ -232,7 +231,8 @@ ui2 <- dashboardPage(
                     collapsible = TRUE
                     ,
                     plotOutput("grid4", height = 520)
-                  )
+                  ),
+                  numericInput("lmt", "Upper limit:", 60, min = 20, max = 5000)
                   
                 )
               ))),
@@ -547,8 +547,7 @@ server <- function(input, output, session) {
     gg <- ggplot(data = nvalues) +
       geom_point(mapping = aes(x = AVG_CALL_DURATION_LAST_1D, y = TOTAL_COUNT, colour =
                                  CODE)) +
-      labs(x = "Average call duration", y = "Total call count",
-           title = " With longer calls we have smaller number of total calls") + ylim(0, 60)
+      labs(x = "Average call duration", y = "Total call count") + ylim(0, input$lmt)
     gg
     
     
