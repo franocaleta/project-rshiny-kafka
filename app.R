@@ -1,5 +1,6 @@
 
 
+
 library(shiny)
 library(magrittr)
 library(jsonlite)
@@ -30,12 +31,19 @@ user_base <- data.frame(
     digest::digest("admin", algo = "md5")
   ),
   permissions = c("user", "admin"),
-  var1 = c("Maximum-MAX_CALL_DURATION_LAST_1D", "Minimum-MIN_CALL_DURATION_LAST_1D"),
-  var2 = c("Maximum-MAX_CALL_DURATION_LAST_1D", "Minimum-MIN_CALL_DURATION_LAST_1D"),
+  graph1 = c(
+    "Maximum-MAX_CALL_DURATION_LAST_1D",
+    "Minimum-MIN_CALL_DURATION_LAST_1D"
+  ),
+  graph2 = c(
+    "Maximum-MAX_CALL_DURATION_LAST_1D",
+    "Minimum-MIN_CALL_DURATION_LAST_1D"
+  ),
+  graph3 = c(2, 2),
   stringsAsFactors = FALSE
 )
 
-#DBI::dbRemoveTable(mydb,"users")
+#DBI::dbRemoveTable(mydb, "users")
 
 if (!DBI::dbExistsTable(mydb, "users")) {
   DBI::dbWriteTable(mydb, "users", user_base)
@@ -49,11 +57,11 @@ dbClearResult(res)
 temp <- read.csv(file = "dataset.csv", header = TRUE, sep = ",")
 temp <- subset(temp, select = -X)
 temp <-
-  temp[temp$AVG_CALL_DURATION_LAST_1D <= temp$MAX_CALL_DURATION_LAST_1D,]
+  temp[temp$AVG_CALL_DURATION_LAST_1D <= temp$MAX_CALL_DURATION_LAST_1D, ]
 temp <-
-  temp[temp$AVG_CALL_DURATION_LAST_3D <= temp$MAX_CALL_DURATION_LAST_3D,]
+  temp[temp$AVG_CALL_DURATION_LAST_3D <= temp$MAX_CALL_DURATION_LAST_3D, ]
 temp <-
-  temp[temp$AVG_CALL_DURATION_LAST_7D <= temp$MAX_CALL_DURATION_LAST_7D,]
+  temp[temp$AVG_CALL_DURATION_LAST_7D <= temp$MAX_CALL_DURATION_LAST_7D, ]
 
 addKeys = function(nested_Vector) {
   keyed_nl = list()
@@ -111,9 +119,10 @@ ui2 <- dashboardPage(
     shinyjs::hidden(
       shiny::actionButton("logout", "Log Out", class = "btn-danger pull-right", style = "color: white;")
     ),
+    #  tabPanel(
     tabItems(
       # First tab content
-      tabItem(tabName = "subitem1",
+      tabItem(tabName = "subitem1", value=1,
               
               fluidRow(div(
                 id = "auth",
@@ -136,7 +145,7 @@ ui2 <- dashboardPage(
                     width = NULL,
                     height = 80,
                     selectInput(
-                      "var1",
+                      "graph1",
                       label = "Choose type of call duration to be displayed",
                       choices = keyedList,
                       selected = "Average"
@@ -165,23 +174,24 @@ ui2 <- dashboardPage(
                     width = NULL,
                     height = 80,
                     selectInput(
-                      "var2",
+                      "graph2",
                       label = "Choose type of call duration to be displayed",
                       choices = keyedList,
                       selected = "Average"
                     )
-                    )
+                  )
                   
                   
                   
-    
-                              )
+                  
+                )
               ))),
       
       
-      tabItem(tabName = "subitem2",
-
-              fluidRow(div(id ="auth2",
+      tabItem(tabName = "subitem2", value=2,
+              
+              fluidRow(div(
+                id = "auth2",
                 column(
                   width = 5,
                   box(
@@ -193,7 +203,24 @@ ui2 <- dashboardPage(
                     collapsible = TRUE
                     ,
                     plotOutput("grid3", height = 520)
-                  )),
+                  ),
+                  box(
+                    status = "primary",
+                    width = NULL
+                    ,
+                    solidHeader = FALSE
+                    ,
+                    collapsible = TRUE
+                    ,
+                    sliderInput(
+                      "graph3",
+                      "Number of dates:",
+                      min = 1,
+                      max = 10,
+                      value = 3
+                    )
+                  )
+                ),
                 column(
                   width = 5,
                   box(
@@ -211,12 +238,14 @@ ui2 <- dashboardPage(
               ))),
       
       tabItem(tabName = "createUser",
-              div( id ="add-user", box(
-                textInput("name", "Name", ""),
-                textInput("pw", "Password", ""),
-                actionButton("addUser", "Add User", class = "button-primary")
-              )))
-    )
+              div(
+                id = "add-user", box(
+                  textInput("name", "Name", ""),
+                  textInput("pw", "Password", ""),
+                  actionButton("addUser", "Add User", class = "button-primary")
+                )
+              )#)
+      ))
   )
 )
 
@@ -227,7 +256,7 @@ get_new_data <- function() {
   #data <- fun2()
   #print(data)
   #print('---------------------------------------')
-  data <- temp[index,]
+  data <- temp[index, ]
   index <<- index + 1
   return(data)
 }
@@ -254,46 +283,36 @@ server <- function(input, output, session) {
   shinyjs::hide(id = "auth2")
   
   
-  output$selected_var <- renderText({
-    paste("You have selected", input$var1)
+  output$selected_graph <- renderText({
+    paste("You have selected", input$graph1)
   })
   
   
   
-  initialized <- hashmap(c("admin", "user"), c( FALSE,FALSE))
-  for (user in user_base$user ) {
-    initialized[[user]] <- FALSE;
+  initialized <- hashmap(c("admin", "user"), c(FALSE, FALSE))
+  for (user in user_base$user) {
+    initialized[[user]] <- FALSE
+    
   }
+  
   observe({
-    if( credentials$user_auth && (credentials$info$var1 != input$var1 || credentials$info$var2 != input$var2)) {
-      if(!initialized[[credentials$info$user]]) {
+    
+    if (credentials$user_auth &&
+        (
+          credentials$info$graph1 != input$graph1 ||
+          credentials$info$graph2 != input$graph2 ||
+          credentials$info$graph3 != input$graph3
+        )) {
+      if (!initialized[[credentials$info$user]]) {
+        updateSelectInput(session, "graph1",
+                          selected = credentials$info$graph1)
         
-        updateSelectInput(session, "var1",
-                          selected = credentials$info$var1);
-        updateSelectInput(session, "var2",
-                          selected = credentials$info$var2);
+        updateSelectInput(session, "graph2",
+                          selected = credentials$info$graph2)
+        
+        updateSliderInput(session, "graph3", value = credentials$info$graph3)
         initialized[[credentials$info$user]] <<- TRUE
       }
-      else {
-        res <- dbSendQuery(mydb, "SELECT * FROM users")
-        users <- data.frame(dbFetch(res))
-        users2<- users  
-        users2[users2$user == credentials$info$user, ]$var2 <- input$var2;
-        users2[users2$user == credentials$info$user, ]$var1 <- input$var1;
-        
-        credentials$info$var1 = input$var1;
-        credentials$info$var2 = input$var2;
-        
-        DBI::dbWriteTable(mydb, "users", users2, overwrite = TRUE);
-        
-        dbClearResult(res)
-        updateSelectInput(session, "var1",
-                          selected = credentials$info$var1);
-        updateSelectInput(session, "var2",
-                          selected = credentials$info$var2);
-      }
-    
-      
       
     }
     if (credentials$user_auth) {
@@ -320,23 +339,34 @@ server <- function(input, output, session) {
   
   observeEvent(input$addUser, {
     if (input$name != '' && input$pw != '') {
-      new_user <- data.frame(
-        user = input$name,
-        password = digest::digest(input$pw, algo = "md5"),
-        permissions = "user",
-        var1 = 'Minimum-MIN_CALL_DURATION_LAST_1D',
-        var2 = 'Minimum-MIN_CALL_DURATION_LAST_1D',
-        stringsAsFactors = FALSE
-      )
-      DBI::dbWriteTable(mydb, "users", new_user, append = TRUE)
+      candidate <- subset(user_base, user == input$name)
+      if (nrow(candidate) > 0) {
+        shinyalert("Error", "Username already exists", type = "error")
+      }
+      else {
+        new_user <- data.frame(
+          user = input$name,
+          password = digest::digest(input$pw, algo = "md5"),
+          permissions = "user",
+          graph1 = 'Minimum-MIN_CALL_DURATION_LAST_1D',
+          graph2 = 'Minimum-MIN_CALL_DURATION_LAST_1D',
+          graph3 = 2,
+          stringsAsFactors = FALSE
+        )
+        DBI::dbWriteTable(mydb, "users", new_user, append = TRUE)
+        
+        res <- dbSendQuery(mydb, "SELECT * FROM users")
+        
+        user_base <<-
+          data.frame(dbFetch(res))
+        dbClearResult(res)
+        initialized[[input$name]] = FALSE
+        
+        shinyalert("Success", "New User Added", type = "success")
+      }
       
-      res <- dbSendQuery(mydb, "SELECT * FROM users")
-      
-      user_base <<-
-        data.frame(dbFetch(res))
-      dbClearResult(res)
-      initialized[[input$name]] = FALSE;
-      shinyalert("Success", "New User Added", type = "success")
+    } else {
+      shinyalert("Error", "Username or password is empty", type = "error")
     }
   })
   
@@ -352,7 +382,7 @@ server <- function(input, output, session) {
       shinyjs::hide(id = "panel")
       shinyjs::show(id = "logout")
       shinyjs::hide(id = "error")
-     
+      
       credentials$info <- subset(users, user == username)
       credentials$user_auth <- TRUE
       
@@ -366,7 +396,22 @@ server <- function(input, output, session) {
   })
   
   observeEvent(input$logout, {
-    initialized[[credentials$info$user]] <<- FALSE;
+    initialized[[credentials$info$user]] <<- FALSE
+    res <- dbSendQuery(mydb, "SELECT * FROM users")
+    users <- data.frame(dbFetch(res))
+    users2 <- users
+    users2[users2$user == credentials$info$user,]$graph2 <-
+      input$graph2
+    
+    users2[users2$user == credentials$info$user,]$graph1 <-
+      input$graph1
+    
+    users2[users2$user == credentials$info$user,]$graph3 <-
+      input$graph3
+    DBI::dbWriteTable(mydb, "users", users2, overwrite = TRUE)
+    
+    
+    dbClearResult(res)
     credentials$user_auth <- FALSE
     credentials$info <- NULL
     shinyjs::show(id = "panel")
@@ -444,11 +489,11 @@ server <- function(input, output, session) {
     invalidateLater(1000, session)
     gg <-
       #format(Sys.time(), format="%H:%M:%S") ---------------triba trenutno vrime stavit na x os
-      ggplot(nvalues[1:25, ], aes_string(x = "ID", y = strsplit(input$var1, "-")[[1]][2]))
+      ggplot(nvalues[1:25,], aes_string(x = "ID", y = strsplit(input$graph1, "-")[[1]][2]))
     gg <-
       gg + geom_point(col = "brown") + geom_line(col = "brown") + theme_bw() + labs(x =
                                                                                       "Time",
-                                                                                    y = paste(strsplit(input$var1, "-")[[1]][1], "call duration", sep = " "))
+                                                                                    y = paste(strsplit(input$graph1, "-")[[1]][1], "call duration", sep = " "))
     
     gg
   })
@@ -463,8 +508,8 @@ server <- function(input, output, session) {
     invalidateLater(1000, session)
     
     gg <-
-      ggplot(data = nvalues, aes_string(x = strsplit(input$var2, "-")[[1]][2], fill = "CODE")) + #zbog koristenja dataset.csv preimenovano iz CALLER_COUNTRY u CODE
-      geom_histogram(bins = 10) + labs(x = paste(strsplit(input$var2, "-")[[1]][1], "call duration", sep =
+      ggplot(data = nvalues, aes_string(x = strsplit(input$graph2, "-")[[1]][2], fill = "CODE")) + #zbog koristenja dataset.csv preimenovano iz CALLER_COUNTRY u CODE
+      geom_histogram(bins = 10) + labs(x = paste(strsplit(input$graph2, "-")[[1]][1], "call duration", sep =
                                                    " "),
                                        y = "Number of occurrences")
     
@@ -477,9 +522,11 @@ server <- function(input, output, session) {
     req(credentials$user_auth)
     nvalues <- update_data()
     invalidateLater(1000, session)
-    nvalues$DATE <- as.Date(nvalues$CALL_DATE,tryFormats = c("%Y-%d-%m"))
-    nvalues$maxDate <-max(nvalues$DATE)
-    nvalues <- filter(nvalues,nvalues$maxDate-nvalues$DATE<6) #only show last 5 days
+    nvalues$DATE <-
+      as.Date(nvalues$CALL_DATE, tryFormats = c("%Y-%d-%m"))
+    nvalues$maxDate <- max(nvalues$DATE)
+    nvalues <-
+      filter(nvalues, nvalues$maxDate - nvalues$DATE < input$graph3) #only show last 5 days
     gg <- ggplot(data = nvalues) +
       geom_bar(mapping = aes(x = CALL_DATE, fill = CALL_DATE)) + guides(fill =
                                                                           FALSE) + labs(x = "Date", y = "Number of occurrences")
@@ -495,11 +542,13 @@ server <- function(input, output, session) {
     req(credentials$user_auth)
     nvalues <- update_data()
     invalidateLater(1000, session)
-    nvalues$TOTAL_COUNT <- nvalues$CALLEE_CALL_COUNT_LAST_1D+nvalues$CALLER_CALL_COUNT_LAST_1D
-    gg <- ggplot(data=nvalues)+
-      geom_point(mapping = aes(x=AVG_CALL_DURATION_LAST_1D,y=TOTAL_COUNT,colour=CODE))+
-      labs(x="Average call duration",y="Total call count",
-           title = " With longer calls we have smaller number of total calls") + ylim(0,60)
+    nvalues$TOTAL_COUNT <-
+      nvalues$CALLEE_CALL_COUNT_LAST_1D + nvalues$CALLER_CALL_COUNT_LAST_1D
+    gg <- ggplot(data = nvalues) +
+      geom_point(mapping = aes(x = AVG_CALL_DURATION_LAST_1D, y = TOTAL_COUNT, colour =
+                                 CODE)) +
+      labs(x = "Average call duration", y = "Total call count",
+           title = " With longer calls we have smaller number of total calls") + ylim(0, 60)
     gg
     
     
@@ -517,4 +566,3 @@ server <- function(input, output, session) {
 
 
 shinyApp(ui = ui2, server = server)
-
