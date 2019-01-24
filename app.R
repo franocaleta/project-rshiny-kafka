@@ -43,10 +43,22 @@ user_base <- data.frame(
   stringsAsFactors = FALSE
 )
 
-#DBI::dbRemoveTable(mydb, "users")
+DBI::dbRemoveTable(mydb, "users")
 
 if (!DBI::dbExistsTable(mydb, "users")) {
-  DBI::dbWriteTable(mydb, "users", user_base)
+  table <- "
+  CREATE TABLE users (
+  user TEXT,
+  password TEXT,
+  permissions TEXT,
+  graph1 TEXT,
+  graph2 TEXT,
+  graph3 TEXT,
+  PRIMARY KEY(user)
+  )"
+  
+  dbExecute(mydb, table)
+  DBI::dbWriteTable(mydb, "users", user_base, append = TRUE)
 }
 
 res <- dbSendQuery(mydb, "SELECT * FROM users")
