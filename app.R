@@ -316,6 +316,7 @@ server <- function(input, output, session) {
           credentials$info$graph3 != input$graph3
         )) {
       if (!initialized[[credentials$info$user]]) {
+        initialized[[credentials$info$user]] <<- TRUE
         updateSelectInput(session, "graph1",
                           selected = credentials$info$graph1)
         
@@ -323,7 +324,6 @@ server <- function(input, output, session) {
                           selected = credentials$info$graph2)
         
         updateSliderInput(session, "graph3", value = credentials$info$graph3)
-        initialized[[credentials$info$user]] <<- TRUE
       }
       
     }
