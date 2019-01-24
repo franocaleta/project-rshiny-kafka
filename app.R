@@ -5,7 +5,6 @@ library(shiny)
 library(magrittr)
 library(jsonlite)
 library(ggplot2)
-library(shinyauthr)
 library(shinyjs)
 library(shinydashboard)
 library(hashmap)
@@ -43,7 +42,7 @@ user_base <- data.frame(
   stringsAsFactors = FALSE
 )
 
-DBI::dbRemoveTable(mydb, "users")
+#DBI::dbRemoveTable(mydb, "users")
 
 if (!DBI::dbExistsTable(mydb, "users")) {
   table <- "
